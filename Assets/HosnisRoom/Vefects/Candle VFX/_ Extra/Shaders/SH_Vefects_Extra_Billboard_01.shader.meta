@@ -1,0 +1,18 @@
+fileFormatVersion: 2
+guid: 08997c0d6741dbf41b07d6c7ed47f9b9
+ShaderImporter:
+  externalObjects: {}
+  defaultTextures:
+  - _Texture: {instanceID: 0}
+  - _texcoord: {instanceID: 0}
+  nonModifiableTextures: []
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 299223
+  packageName: Candle VFX
+  packageVersion: 1.0.0
+  assetPath: Assets/Vefects/Candle VFX/_ Extra/Shaders/SH_Vefects_Extra_Billboard_01.shader
+  uploadId: 706635

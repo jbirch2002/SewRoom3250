@@ -1,0 +1,16 @@
+fileFormatVersion: 2
+guid: bab3fd222929b444cb86b7473844f6c1
+ShaderImporter:
+  externalObjects: {}
+  defaultTextures: []
+  nonModifiableTextures: []
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 299223
+  packageName: Candle VFX
+  packageVersion: 1.0.0
+  assetPath: Assets/Vefects/Candle VFX/Candles/Arcvhiz Glass Candle/Shaders/SH_Vefects_VFX_Glass_01.shader
+  uploadId: 706635

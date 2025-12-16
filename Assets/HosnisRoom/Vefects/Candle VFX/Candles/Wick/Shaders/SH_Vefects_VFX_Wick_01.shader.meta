@@ -1,0 +1,17 @@
+fileFormatVersion: 2
+guid: 5316bd7d918061743959439420cdfdf3
+ShaderImporter:
+  externalObjects: {}
+  defaultTextures:
+  - _texcoord: {instanceID: 0}
+  nonModifiableTextures: []
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 299223
+  packageName: Candle VFX
+  packageVersion: 1.0.0
+  assetPath: Assets/Vefects/Candle VFX/Candles/Wick/Shaders/SH_Vefects_VFX_Wick_01.shader
+  uploadId: 706635

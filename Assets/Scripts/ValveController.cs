@@ -9,11 +9,9 @@ public class ValveController : MonoBehaviour
     
     [Header("Water Flow")]
     [SerializeField] private ParticleSystem waterFlow;
-    [SerializeField] private AudioSource valveTurnSource; // Sound when turning
-    [SerializeField] private AudioSource pipeWaterSource; // Sound of water flow
-    [SerializeField] private SewerRoomWaterManager sewerWaterManager; // Reference to the rising water manager
+    [SerializeField] private AudioSource waterSound; // Optional water sound
     
-
+    private bool waterIsFlowing = false;
     
     [Header("Interaction")]
     [SerializeField] private float interactionDistance = 3f;
@@ -28,6 +26,7 @@ public class ValveController : MonoBehaviour
     
     [Header("Animation")]
     [SerializeField] private Animator valveAnimator; // For Animator Controller animations
+    [SerializeField] private Animation valveAnimation; // For legacy Animation component
     [SerializeField] private string spinAnimationName = "Spin"; // Name of the spin animation
     
     void Start()
@@ -65,7 +64,60 @@ public class ValveController : MonoBehaviour
             Debug.Log("Animator component found.");
         }
         
-
+        if (valveAnimation == null)
+        {
+            valveAnimation = GetComponent<Animation>();
+            if (valveAnimation == null)
+            {
+                valveAnimation = GetComponentInChildren<Animation>();
+            }
+        }
+        
+        // Disable "Play Automatically" on Animation component to prevent constant playing
+        if (valveAnimation != null)
+        {
+            valveAnimation.playAutomatically = false;
+            valveAnimation.Stop(); // Stop any playing animation
+            
+            // The clip is already in the scene's m_Animations array, so we don't need to add it
+            // Unity's GetClip() can be unreliable, so we'll use the default clip directly
+            if (valveAnimation.clip != null)
+            {
+                AnimationClip clip = valveAnimation.clip;
+                string clipName = clip.name;
+                
+                Debug.Log($"Default clip found: '{clipName}'");
+                
+                // Try to access the AnimationState - this will create it if it doesn't exist
+                // The clip is already in the m_Animations array from the scene, so the state should be accessible
+                try
+                {
+                    // Accessing the state by name will create it if the clip is in the animations array
+                    AnimationState state = valveAnimation[clipName];
+                    if (state != null)
+                    {
+                        Debug.Log($"AnimationState for '{clipName}' is accessible");
+                        // Set wrap mode now so it's ready when we play
+                        state.wrapMode = WrapMode.Once;
+                    }
+                    else
+                    {
+                        Debug.LogWarning($"AnimationState for '{clipName}' is null - clip may not be in animations array");
+                    }
+                }
+                catch (System.Exception e)
+                {
+                    Debug.LogWarning($"Could not access AnimationState for '{clipName}': {e.Message}");
+                    Debug.LogWarning("This is normal if the clip isn't in the animations array yet. It will be handled at play time.");
+                }
+            }
+            
+            Debug.Log($"Animation component configured - Clip: {(valveAnimation.clip != null ? valveAnimation.clip.name : "None")}, Enabled: {valveAnimation.enabled}, Play Automatically: {valveAnimation.playAutomatically}");
+        }
+        else
+        {
+            Debug.LogWarning("No Animation component found on valve!");
+        }
         
         // Find player camera
         playerCamera = Camera.main;
@@ -82,7 +134,7 @@ public class ValveController : MonoBehaviour
             if (waterFlow == null)
             {
                 // Look in parent or siblings
-                ParticleSystem[] allPS = FindObjectsByType<ParticleSystem>(FindObjectsSortMode.None);
+                ParticleSystem[] allPS = FindObjectsOfType<ParticleSystem>();
                 foreach (ParticleSystem ps in allPS)
                 {
                     // Check if it's near the valve (within 5 units)
@@ -105,6 +157,7 @@ public class ValveController : MonoBehaviour
         {
             waterFlow.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear); // Stop and clear all particles
             waterFlow.Clear(); // Clear any existing particles
+            waterIsFlowing = false;
             Debug.Log("Water particle system initialized and stopped.");
         }
         else
@@ -115,32 +168,23 @@ public class ValveController : MonoBehaviour
     
     void Update()
     {
+        // Check if an animation is currently playing (Legacy Animation)
         bool animationIsPlaying = false;
-        
-        // Monitor Animator: Stop it after one loop if it's the spin animation
-        // This fixes the "continuous spinning" issue by treating the loop as a one-shot
-        if (valveAnimator != null && valveAnimator.enabled)
+        if (valveAnimation != null && valveAnimation.isPlaying)
         {
-            AnimatorStateInfo state = valveAnimator.GetCurrentAnimatorStateInfo(0);
-            
-            // Check if playing the spin state (using name or tag)
-            if (state.IsName(spinAnimationName) || state.IsTag("Spin") || state.IsName("Spin"))
+            animationIsPlaying = true;
+        }
+        
+        // Check if Animator is playing a state
+        if (!animationIsPlaying && valveAnimator != null && valveAnimator.enabled)
+        {
+            if (valveAnimator.GetCurrentAnimatorStateInfo(0).IsName(spinAnimationName) || 
+                valveAnimator.GetCurrentAnimatorStateInfo(0).IsTag("Spin"))
             {
-                // If the animation has completed at least one loop
-                if (state.normalizedTime >= 1.0f)
-                {
-                    // STOP the animation by disabling the animator
-                    // This creates a "Play Once" effect even if the clip is looping
-                    valveAnimator.enabled = false;
-                    
-                    // Ensure we don't fall through to code-based rotation
-                    isRotating = false;
-                }
-                else
-                {
-                    // Animation is still progressing
-                    animationIsPlaying = true;
-                }
+                // If it's playing and normalized time is < 1, checking if it is still playing
+                 if(valveAnimator.GetCurrentAnimatorStateInfo(0).normalizedTime < 1.0f) {
+                     animationIsPlaying = true;
+                 }
             }
         }
         
@@ -209,7 +253,7 @@ public class ValveController : MonoBehaviour
         isOpen = !isOpen;
         isRotating = true;
         
-        Debug.Log($"ToggleValve called - isOpen: {isOpen}");
+        Debug.Log($"ToggleValve called - isOpen: {isOpen}, Animation component: {(valveAnimation != null ? "Found" : "NULL")}, Clip: {(valveAnimation != null && valveAnimation.clip != null ? valveAnimation.clip.name : "None")}");
         
         // Play spin animation if available
         PlaySpinAnimation();
@@ -222,7 +266,7 @@ public class ValveController : MonoBehaviour
             waterFlow = GetComponentInChildren<ParticleSystem>();
             if (waterFlow == null)
             {
-                ParticleSystem[] allPS = FindObjectsByType<ParticleSystem>(FindObjectsSortMode.None);
+                ParticleSystem[] allPS = FindObjectsOfType<ParticleSystem>();
                 foreach (ParticleSystem ps in allPS)
                 {
                     if (Vector3.Distance(ps.transform.position, transform.position) < 5f)
@@ -242,50 +286,36 @@ public class ValveController : MonoBehaviour
             {
                 // Start water flow
                 waterFlow.Play();
+                waterIsFlowing = true;
                 Debug.Log($"Valve opened - Water flowing! Particle system '{waterFlow.name}' is now playing.");
-                
-                if (sewerWaterManager != null)
-                {
-                    sewerWaterManager.StartWater();
-                }
             }
             else
             {
                 // Stop water flow completely
                 waterFlow.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
                 waterFlow.Clear(); // Clear all particles immediately
+                waterIsFlowing = false;
                 Debug.Log("Valve closed - Water stopped!");
-                
-                if (sewerWaterManager != null)
-                {
-                    sewerWaterManager.StopWater();
-                }
             }
         }
         else
         {
-            Debug.LogError("Water Flow particle system is not assigned even after auto-find! Please assign it.");
-            // Still try to trigger sewer water if manager exists, even if pipe flow is missing
-            if (isOpen && sewerWaterManager != null) sewerWaterManager.StartWater();
-            else if (!isOpen && sewerWaterManager != null) sewerWaterManager.StopWater();
+            Debug.LogError("Water Flow particle system is not assigned and could not be found automatically! Please assign it in the Inspector.");
         }
         
-        // Play valve turn sound
-        if (valveTurnSource != null)
-        {
-            valveTurnSource.PlayOneShot(valveTurnSource.clip);
-        }
-
-        // Handle water flow sound
-        if (pipeWaterSource != null)
+        // Play water sound if available
+        if (waterSound != null)
         {
             if (isOpen)
             {
-                if (!pipeWaterSource.isPlaying) pipeWaterSource.Play();
+                if (!waterSound.isPlaying)
+                {
+                    waterSound.Play();
+                }
             }
             else
             {
-                pipeWaterSource.Stop();
+                waterSound.Stop();
             }
         }
     }
@@ -303,9 +333,16 @@ public class ValveController : MonoBehaviour
         {
             waterFlow.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
             waterFlow.Clear();
+            waterIsFlowing = false;
         }
         
-
+        // We don't disable Animator anymore
+        
+        if (valveAnimation != null)
+        {
+            valveAnimation.playAutomatically = false;
+            valveAnimation.Stop();
+        }
     }
     
     // Play the spin animation
@@ -313,8 +350,51 @@ public class ValveController : MonoBehaviour
     {
         bool animationPlaying = false;
         
-        // STRATEGY: Try Modern Animator Component
-        if (valveAnimator != null)
+        // STRATEGY 1: Try Legacy Animation Component
+        if (valveAnimation != null && valveAnimation.enabled)
+        {
+            // Stop any currently playing animation first
+            valveAnimation.Stop();
+            
+            // Determine which animation to play
+            string targetName = !string.IsNullOrEmpty(spinAnimationName) ? spinAnimationName : null;
+            
+            // If no specific name, try to use the default clip's name
+            if (targetName == null && valveAnimation.clip != null)
+            {
+                targetName = valveAnimation.clip.name;
+            }
+            
+            Debug.Log($"Looking for animation: {targetName ?? "any"}");
+            
+            // Try to play using Play()
+            try
+            {
+                if (targetName != null) {
+                    valveAnimation.Play(targetName);
+                } else {
+                    valveAnimation.Play();
+                }
+                
+                if (valveAnimation.isPlaying) {
+                     animationPlaying = true;
+                     Debug.Log($"Played Legacy Animation: {targetName ?? "default"}");
+                }
+            } catch (System.Exception e) {
+                Debug.LogWarning($"Legacy animation failed: {e.Message}");
+            }
+            
+            if (!animationPlaying && valveAnimation.clip != null) {
+                 // Try crossfade fallback
+                 try {
+                     valveAnimation.CrossFade(valveAnimation.clip.name);
+                     if (valveAnimation.isPlaying) animationPlaying = true;
+                 } catch {}
+            }
+        }
+        
+        // STRATEGY 2: Try Modern Animator Component (Fallback)
+        if (!animationPlaying && valveAnimator != null)
         {
             Debug.Log("Legacy animation failed or missing. Trying Animator component...");
             

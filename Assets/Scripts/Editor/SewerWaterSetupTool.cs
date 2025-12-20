@@ -397,4 +397,48 @@ public class SewerWaterSetupTool : Editor
     {
         return null; // Undo for RenderSettings is tricky, usually handled by scene state.
     }
+    [MenuItem("Tools/Export Sewer Package")]
+    public static void ExportSewerPackage()
+    {
+        string exportPath = "SewerRoomAsset.unitypackage";
+        
+        // List of specific assets/folders to export
+        // We include dependencies to ensure materials/textures come along
+        string[] assetPaths = new string[] 
+        {
+            "Assets/SewerRoomScene.unity", // The Scene itself
+            "Assets/SewerRoom.prefab",    // The Room Prefab
+            "Assets/SewerRoom",           // Models folder
+            "Assets/Materials/SewerWater_Generated.mat",
+            "Assets/Scripts/SewerRoomWaterManager.cs",
+            "Assets/Scripts/ValveController.cs", 
+            "Assets/Scripts/FloatingDebrisSetup.cs",
+            "Assets/Scripts/WaterParticleSetup.cs",
+            "Assets/Scripts/Editor/SewerWaterSetupTool.cs", // Include the tool itself for easy setup in new project!
+            "Assets/Audio/rustyvalveturn.mp3",
+            "Assets/Audio/sewerwater.mp3",
+            "Assets/Audio/bubbly.mp3"
+        };
+        
+        Debug.Log("Exporting Sewer Room Package...");
+        
+        // Check for missing files just in case
+        System.Collections.Generic.List<string> validPaths = new System.Collections.Generic.List<string>();
+        foreach (var path in assetPaths)
+        {
+            if (AssetDatabase.IsValidFolder(path) || System.IO.File.Exists(path))
+            {
+                validPaths.Add(path);
+            }
+            else
+            {
+                Debug.LogWarning($"Skipping missing asset for export: {path}");
+            }
+        }
+
+        AssetDatabase.ExportPackage(validPaths.ToArray(), exportPath, ExportPackageOptions.Recurse | ExportPackageOptions.IncludeDependencies);
+        
+        Debug.Log($"Export Complete! Saved to: {System.IO.Path.GetFullPath(exportPath)}");
+        EditorUtility.RevealInFinder(exportPath);
+    }
 }
